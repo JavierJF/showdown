@@ -7,7 +7,7 @@ showdown.subParser('makeMarkdown.blockquote', function (node, globals) {
         childrenLength = children.length;
 
     for (var i = 0; i < childrenLength; ++i) {
-      var innerTxt = showdown.subParser('makeMarkdown.node')(children[i], globals);
+      var innerTxt = showdown.subParser('makeMarkdown.node')(children[i], globals, false, txt);
 
       if (innerTxt === '') {
         continue;

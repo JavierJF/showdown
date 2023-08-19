@@ -1,4 +1,4 @@
-;/*! showdown v 2.1.0 - 21-04-2022 */
+;/*! showdown v 2.1.0 - 19-08-2023 */
 (function(){
 /**
  * Created by Tivie on 13-07-2015.
@@ -2571,7 +2571,7 @@ showdown.Converter = function (converterOptions) {
         mdDoc = '';
 
     for (var i = 0; i < nodes.length; i++) {
-      mdDoc += showdown.subParser('makeMarkdown.node')(nodes[i], globals);
+      mdDoc += showdown.subParser('makeMarkdown.node')(nodes[i], globals, false, mdDoc);
     }
 
     function clean (node) {
@@ -4658,7 +4658,7 @@ showdown.subParser('makeMarkdown.blockquote', function (node, globals) {
         childrenLength = children.length;
 
     for (var i = 0; i < childrenLength; ++i) {
-      var innerTxt = showdown.subParser('makeMarkdown.node')(children[i], globals);
+      var innerTxt = showdown.subParser('makeMarkdown.node')(children[i], globals, false, txt);
 
       if (innerTxt === '') {
         continue;
@@ -4695,7 +4695,7 @@ showdown.subParser('makeMarkdown.emphasis', function (node, globals) {
     var children = node.childNodes,
         childrenLength = children.length;
     for (var i = 0; i < childrenLength; ++i) {
-      txt += showdown.subParser('makeMarkdown.node')(children[i], globals);
+      txt += showdown.subParser('makeMarkdown.node')(children[i], globals, false, txt);
     }
     txt += '*';
   }
@@ -4714,7 +4714,7 @@ showdown.subParser('makeMarkdown.header', function (node, globals, headerLevel) 
         childrenLength = children.length;
 
     for (var i = 0; i < childrenLength; ++i) {
-      txt += showdown.subParser('makeMarkdown.node')(children[i], globals);
+      txt += showdown.subParser('makeMarkdown.node')(children[i], globals, false, txt);
     }
   }
   return txt;
@@ -4809,7 +4809,7 @@ showdown.subParser('makeMarkdown.listItem', function (node, globals) {
       childrenLenght = children.length;
 
   for (var i = 0; i < childrenLenght; ++i) {
-    listItemTxt += showdown.subParser('makeMarkdown.node')(children[i], globals);
+    listItemTxt += showdown.subParser('makeMarkdown.node')(children[i], globals, false, listItemTxt);
   }
   // if it's only one liner, we need to add a newline at the end
   if (!/\n$/.test(listItemTxt)) {
@@ -4828,7 +4828,7 @@ showdown.subParser('makeMarkdown.listItem', function (node, globals) {
 
 
 
-showdown.subParser('makeMarkdown.node', function (node, globals, spansOnly) {
+showdown.subParser('makeMarkdown.node', function (node, globals, spansOnly, prevTxt) {
   'use strict';
 
   spansOnly = spansOnly || false;
@@ -4837,7 +4837,7 @@ showdown.subParser('makeMarkdown.node', function (node, globals, spansOnly) {
 
   // edge case of text without wrapper paragraph
   if (node.nodeType === 3) {
-    return showdown.subParser('makeMarkdown.txt')(node, globals);
+    return showdown.subParser('makeMarkdown.txt')(node, globals, false, txt);
   }
 
   // HTML comment
@@ -4851,6 +4851,26 @@ showdown.subParser('makeMarkdown.node', function (node, globals, spansOnly) {
   }
 
   var tagName = node.tagName.toLowerCase();
+  var nl = '';
+
+  // Ensure that sections are consistently separated by two new-lines.
+  if (typeof prevTxt !== 'undefined' && prevTxt.length !== 0) {
+    for (var i = prevTxt.length; i > 0; i--) {
+      if (prevTxt.at(i) !== ' ') {
+        break;
+      }
+    }
+    prevTxt = prevTxt.slice(0, i);
+
+    var numNLs = prevTxt.at(-2) === '\n' ? 1 : 0;
+    numNLs += prevTxt.at(-1) === '\n' ? 1 : 0;
+
+    if (numNLs === 0) {
+      nl = '\n\n';
+    } else if (numNLs === 1) {
+      nl = '\n';
+    }
+  }
 
   switch (tagName) {
 
@@ -4858,54 +4878,54 @@ showdown.subParser('makeMarkdown.node', function (node, globals, spansOnly) {
     // BLOCKS
     //
     case 'h1':
-      if (!spansOnly) { txt = showdown.subParser('makeMarkdown.header')(node, globals, 1) + '\n\n'; }
+      if (!spansOnly) { txt = nl + showdown.subParser('makeMarkdown.header')(node, globals, 1) + '\n\n'; }
       break;
     case 'h2':
-      if (!spansOnly) { txt = showdown.subParser('makeMarkdown.header')(node, globals, 2) + '\n\n'; }
+      if (!spansOnly) { txt = nl + showdown.subParser('makeMarkdown.header')(node, globals, 2) + '\n\n'; }
       break;
     case 'h3':
-      if (!spansOnly) { txt = showdown.subParser('makeMarkdown.header')(node, globals, 3) + '\n\n'; }
+      if (!spansOnly) { txt = nl + showdown.subParser('makeMarkdown.header')(node, globals, 3) + '\n\n'; }
       break;
     case 'h4':
-      if (!spansOnly) { txt = showdown.subParser('makeMarkdown.header')(node, globals, 4) + '\n\n'; }
+      if (!spansOnly) { txt = nl + showdown.subParser('makeMarkdown.header')(node, globals, 4) + '\n\n'; }
       break;
     case 'h5':
-      if (!spansOnly) { txt = showdown.subParser('makeMarkdown.header')(node, globals, 5) + '\n\n'; }
+      if (!spansOnly) { txt = nl + showdown.subParser('makeMarkdown.header')(node, globals, 5) + '\n\n'; }
       break;
     case 'h6':
-      if (!spansOnly) { txt = showdown.subParser('makeMarkdown.header')(node, globals, 6) + '\n\n'; }
+      if (!spansOnly) { txt = nl + showdown.subParser('makeMarkdown.header')(node, globals, 6) + '\n\n'; }
       break;
 
     case 'p':
-      if (!spansOnly) { txt = showdown.subParser('makeMarkdown.paragraph')(node, globals) + '\n\n'; }
+      if (!spansOnly) { txt = nl + showdown.subParser('makeMarkdown.paragraph')(node, globals) + '\n\n'; }
       break;
 
     case 'blockquote':
-      if (!spansOnly) { txt = showdown.subParser('makeMarkdown.blockquote')(node, globals) + '\n\n'; }
+      if (!spansOnly) { txt = nl + showdown.subParser('makeMarkdown.blockquote')(node, globals) + '\n\n'; }
       break;
 
     case 'hr':
-      if (!spansOnly) { txt = showdown.subParser('makeMarkdown.hr')(node, globals) + '\n\n'; }
+      if (!spansOnly) { txt = nl + showdown.subParser('makeMarkdown.hr')(node, globals) + '\n\n'; }
       break;
 
     case 'ol':
-      if (!spansOnly) { txt = showdown.subParser('makeMarkdown.list')(node, globals, 'ol') + '\n\n'; }
+      if (!spansOnly) { txt = nl + showdown.subParser('makeMarkdown.list')(node, globals, 'ol') + '\n\n'; }
       break;
 
     case 'ul':
-      if (!spansOnly) { txt = showdown.subParser('makeMarkdown.list')(node, globals, 'ul') + '\n\n'; }
+      if (!spansOnly) { txt = nl + showdown.subParser('makeMarkdown.list')(node, globals, 'ul') + '\n\n'; }
       break;
 
     case 'precode':
-      if (!spansOnly) { txt = showdown.subParser('makeMarkdown.codeBlock')(node, globals) + '\n\n'; }
+      if (!spansOnly) { txt = nl + showdown.subParser('makeMarkdown.codeBlock')(node, globals) + '\n\n'; }
       break;
 
     case 'pre':
-      if (!spansOnly) { txt = showdown.subParser('makeMarkdown.pre')(node, globals) + '\n\n'; }
+      if (!spansOnly) { txt = nl + showdown.subParser('makeMarkdown.pre')(node, globals) + '\n\n'; }
       break;
 
     case 'table':
-      if (!spansOnly) { txt = showdown.subParser('makeMarkdown.table')(node, globals) + '\n\n'; }
+      if (!spansOnly) { txt = nl + showdown.subParser('makeMarkdown.table')(node, globals) + '\n\n'; }
       break;
 
     //
@@ -4955,7 +4975,7 @@ showdown.subParser('makeMarkdown.paragraph', function (node, globals) {
     var children = node.childNodes,
         childrenLength = children.length;
     for (var i = 0; i < childrenLength; ++i) {
-      txt += showdown.subParser('makeMarkdown.node')(children[i], globals);
+      txt += showdown.subParser('makeMarkdown.node')(children[i], globals, false, txt);
     }
   }
 
@@ -4981,7 +5001,7 @@ showdown.subParser('makeMarkdown.strikethrough', function (node, globals) {
     var children = node.childNodes,
         childrenLength = children.length;
     for (var i = 0; i < childrenLength; ++i) {
-      txt += showdown.subParser('makeMarkdown.node')(children[i], globals);
+      txt += showdown.subParser('makeMarkdown.node')(children[i], globals, false, txt);
     }
     txt += '~~';
   }
@@ -4997,7 +5017,7 @@ showdown.subParser('makeMarkdown.strong', function (node, globals) {
     var children = node.childNodes,
         childrenLength = children.length;
     for (var i = 0; i < childrenLength; ++i) {
-      txt += showdown.subParser('makeMarkdown.node')(children[i], globals);
+      txt += showdown.subParser('makeMarkdown.node')(children[i], globals, false, txt);
     }
     txt += '**';
   }
@@ -5086,7 +5106,7 @@ showdown.subParser('makeMarkdown.tableCell', function (node, globals) {
       childrenLength = children.length;
 
   for (var i = 0; i < childrenLength; ++i) {
-    txt += showdown.subParser('makeMarkdown.node')(children[i], globals, true);
+    txt += showdown.subParser('makeMarkdown.node')(children[i], globals, true, txt);
   }
   return txt.trim();
 });
